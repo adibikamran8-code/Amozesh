@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="fa">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>بازی آموزش تلفظ (کودک)</title>
+<style>
+  body { font-family: Tahoma, 'Vazir', sans-serif; direction: rtl; text-align: center; padding: 18px; background: #fffbe6; color:#222;}
+  h1 { font-size: 24px; margin: 14px 0; }
+  #card { background: #ffffff; border-radius: 14px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); padding: 18px; max-width: 560px; margin: auto; }
+  #big { font-size: 110px; margin: 12px 0; }
+  button { font-size: 18px; padding: 10px 14px; margin: 8px; border-radius: 10px; border: none; cursor: pointer; background:#4CAF50; color:white; }
+  .muted { background:#ddd; color:#333; }
+  #message { font-size:18px; margin-top:12px; min-height:28px; }
+  .choices { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .choice-btn { padding:10px 14px; border-radius:10px; border:2px solid #4a4a4a; background:#fff; cursor:pointer; font-size:18px; min-width:110px; }
+  .correct { background: #c8e6c9; border-color:#219653; }
+  .wrong { background: #ffcdd2; border-color:#c62828; }
+  #stars { font-size:20px; margin-top:8px; color:#f39c12; min-height:22px;}
+  small { color:#555; display:block; margin-top:10px;}
+</style>
+</head>
+<body>
+  <div id="card">
+    <h1>بازی تلفظ و خواندن — مخصوص کودکان</h1>
+
+    <div id="stageTitle">مرحله ۱: تلفظ یک حرف</div>
+
+    <div id="big">ب</div>
+
+    <div>
+      <button id="playBtn">🔊 پخش</button>
+      <button id="listenBtn">🎤 گوش کن (تلفظ کن)</button>
+      <button id="skipBtn" class="muted">⏭️ بعدی</button>
+    </div>
+
+    <div id="message"></div>
+    <div id="stars"></div>
+
+    <div id="combineArea" style="display:none; margin-top: 18px;">
+      <h2>مرحله ۲: ترکیب حروف برای ساخت کلمه</h2>
+      <div id="combineLetters" style="font-size:50px; margin:12px 0;"></div>
+      <div>
+        <button id="playWordBtn">🔊 پخش کلمه</button>
+        <button id="listenWordBtn">🎤 تلفظ کن</button>
+      </div>
+      <div id="combineMessage"></div>
+    </div>
+
+    <div id="chooseArea" style="display:none; margin-top: 18px;">
+      <h2>مرحله ۳: کلمه درست را انتخاب کن</h2>
+      <button id="playTargetWord" class="muted">🔊 پخش کلمه هدف</button>
+      <div class="choices" id="choices"></div>
+      <div id="chooseMessage"></div>
+    </div>
+
+    <small>توجه: برای عملکرد بهتر، از مرورگر کروم اندروید استفاده کن و اجازه دسترسی به میکروفون را بده.</small>
+  </div>
+
+<script>
+/* ========= داده‌ها (قابل گسترش) ========= */
+const lessons = [
+  // هر درس: حرف، ترکیب (آرایه حروف برای مرحله 2)، کلمهٔ کامل، گزینه‌ها برای مرحله 3 (یکی از آنها کلمهٔ درست)
+  { letter: "ب", combo: ["ب","ا"], word: "با", choices: ["با","بی","بو"] },
+  { letter: "م", combo: ["م","ا"], word: "ما", choices: ["ما","می","مو"] },
+  { letter: "د", combo: ["د","ا"], word: "دا", choices: ["دا","دی","دو"] },
+  { letter: "س", combo: ["س","ا"], word: "سا", choices: ["سا","سی","سو"] }
+];
+let lessonIndex = 0;
+let stars = 0;
+
+/* ========= نمایش اولیه ========= */
+const big = document.getElementById('big');
+const stageTitle = document.getElementById('stageTitle');
+const playBtn = document.getElementById('playBtn');
+const listenBtn = document.getElementById('listenBtn');
+const skipBtn = document.getElementById('skipBtn');
+const message = document.getElementById('message');
+const starsEl = document.getElementById('stars');
+
+const combineArea = document.getElementById('combineArea');
+const combineLetters = document.getElementById('combineLetters');
+const playWordBtn = document.getElementById('playWordBtn');
+const listenWordBtn = document.getElementById('listenWordBtn');
+const combineMessage = document.getElementById('combineMessage');
+
+const chooseArea = document.getElementById('chooseArea');
+const playTargetWord = document.getElementById('playTargetWord');
+const choicesEl = document.getElementById('choices');
+const chooseMessage = document.getElementById('chooseMessage');
+
+function loadLesson(i) {
+  const L = lessons[i];
+  big.textContent = L.letter;
+  stageTitle.textContent = "مرحله ۱: تلفظ یک حرف";
+  message.textContent = "";
+  combineArea.style.display = "none";
+  chooseArea.style.display = "none";
+  updateStars();
+}
+function updateStars(){ starsEl.textContent = "⭐".repeat(stars); }
+
+/* ========= تبدیل و نرمال‌سازی متن برای مقایسهٔ گفتاری ========= */
+function normalizePersian(s) {
+  if(!s) return "";
+  s = s.toLowerCase().trim();
+  // حذف اعراب و فاصله‌های اضافی
+  s = s.replace(/[\u064B-\u0652]/g, ""); // diacritics
+  s = s.replace(/[ي]/g, "ی").replace(/[ك]/g, "ک");
+  s = s.replace(/آ/g, "ا"); // همسان‌سازی ساده
+  s = s.replace(/\s+/g, "");
+  return s;
+}
+
+/* ========= Text-to-Speech ساده ========= */
+function speak(text, onend) {
+  if (!("speechSynthesis" in window)) {
+    alert("متأسفانه مرورگر شما از پخش گفتار پشتیبانی نمی‌کند.");
+    if (onend) onend();
+    return;
+  }
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'fa-IR';
+  u.rate = 0.9;
+  u.onend = onend;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+
+/* ========= Speech Recognition ========= */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+function isRecognitionAvailable(){ return !!SpeechRecognition; }
+
+function listenOnce(lang='fa-IR', onResult, onError) {
+  if (!SpeechRecognition) {
+    if(onError) onError("noapi");
+    return;
+  }
+  const r = new SpeechRecognition();
+  r.lang = lang;
+  r.interimResults = false;
+  r.maxAlternatives = 3;
+  try {
+    r.start();
+  } catch(e) {
+    if(onError) onError(e.message || e);
+    return;
+  }
+  r.onresult = function(ev) {
+    const transcript = ev.results[0][0].transcript;
+    onResult && onResult(transcript);
+  };
+  r.onerror = function(ev) {
+    onError && onError(ev.error || ev.message || 'error');
+  };
+  // timeout safety: stop after 6s
+  setTimeout(()=>{ try{ r.stop(); }catch(e){} }, 7000);
+}
+
+/* ========= مرحله 1: حرف ========= */
+playBtn.addEventListener('click', ()=> {
+  const L = lessons[lessonIndex];
+  speak(L.letter);
+});
+listenBtn.addEventListener('click', ()=> {
+  if(!isRecognitionAvailable()){ message.textContent = "تشخیص گفتار در مرورگر شما فعال نیست."; return; }
+  message.textContent = "در حال گوش کردن... لطفاً حرف را با صدای بلند بگو.";
+  listenOnce('fa-IR', (transcript)=>{
+    message.textContent = "شما گفتید: " + transcript;
+    const got = normalizePersian(transcript);
+    const target = normalizePersian(lessons[lessonIndex].letter);
+    if(got === target || got.includes(target)) {
+      message.textContent = "آفرین! تلفظ حرف درست بود 🎉";
+      stars += 1;
+      updateStars();
+      // برو مرحله ترکیب بعد از دو ثانیه
+      setTimeout(()=> startCombineStage(), 900);
+    } else {
+      message.textContent = "خیلی خوب — دوباره تلاش کن. (یا دکمه پخش را بزن تا صدا را گوش کنی)";
+    }
+  }, (err)=>{
+    if(err === "noapi") message.textContent = "مرورگر شما از تشخیص گفتار پشتیبانی نمی‌کند.";
+    else message.textContent = "خطا در تشخیص گفتار: " + err;
+  });
+});
+
+/* ========= مرحله ۲: ترکیب حروف ========= */
+function startCombineStage(){
+  const L = lessons[lessonIndex];
+  stageTitle.textContent = "مرحله ۲: ترکیب حروف";
+  combineArea.style.display = "block";
+  combineLetters.textContent = L.combo.join(" + ");
+  combineMessage.textContent = "";
+  // خودکار پخش کن
+  speak(L.word);
+}
+playWordBtn.addEventListener('click', ()=>{
+  speak(lessons[lessonIndex].word);
+});
+listenWordBtn.addEventListener('click', ()=>{
+  if(!isRecognitionAvailable()){ combineMessage.textContent = "تشخیص گفتار پشتیبانی نمی‌شود."; return; }
+  combineMessage.textContent = "در حال گوش کردن... لطفاً کلمه را بگو.";
+  listenOnce('fa-IR', (transcript)=>{
+    combineMessage.textContent = "شما گفتید: " + transcript;
+    const got = normalizePersian(transcript);
+    const target = normalizePersian(lessons[lessonIndex].word);
+    if(got === target || got.includes(target)) {
+      combineMessage.textContent = "آفرین! تلفظ کلمه درست بود 🎉";
+      stars += 1;
+      updateStars();
+      setTimeout(()=> startChooseStage(), 900);
+    } else {
+      combineMessage.textContent = "دوباره تلاش کن یا صدا را دوباره گوش کن.";
+    }
+  }, (err)=> {
+    combineMessage.textContent = "خطا در تشخیص: " + err;
+  });
+});
+
+/* ========= مرحله ۳: انتخاب از بین سه کلمه ========= */
+function startChooseStage(){
+  stageTitle.textContent = "مرحله ۳: کلمهٔ درست را انتخاب کن";
+  chooseArea.style.display = "block";
+  chooseMessage.textContent = "";
+  // پر کردن گزینه‌ها
+  const L = lessons[lessonIndex];
+  choicesEl.innerHTML = "";
+  // shuffle choices for variety
+  const opts = shuffleArray(L.choices.slice());
+  opts.forEach(opt=>{
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = opt;
+    btn.addEventListener('click', ()=> {
+      const got = normalizePersian(opt);
+      const target = normalizePersian(L.word);
+      if(got === target){
+        btn.classList.add('correct');
+        chooseMessage.textContent = "درست انتخاب کردی! آفرین 🎉";
+        stars += 1;
+        updateStars();
+        // آماده‌سازی برای درس بعدی
+        setTimeout(()=> nextLesson(), 1200);
+      } else {
+        btn.classList.add('wrong');
+        chooseMessage.textContent = "نه، این درست نبود. دوباره تلاش کن.";
+      }
+    });
+    choicesEl.appendChild(btn);
+  });
+  // دکمه پخش هدف
+  playTargetWord.onclick = ()=> speak(L.word);
+  // پخش هدف خودکار
+  speak(L.word);
+}
+
+/* ========= درس بعدی ========= */
+function nextLesson(){
+  lessonIndex++;
+  if(lessonIndex >= lessons.length){
+    // پایان تمرین
+    stageTitle.textContent = "تبریک! تمرین تمام شد";
+    big.textContent = "تمام شد 🎉";
+    combineArea.style.display = "none";
+    chooseArea.style.display = "none";
+    message.textContent = `شما ${stars} ستاره به‌دست آوردید. آفرین!`;
+    playBtn.disabled = true;
+    listenBtn.disabled = true;
+    skipBtn.disabled = true;
+    return;
+  }
+  // ریست و لود درس جدید
+  combineArea.style.display = "none";
+  chooseArea.style.display = "none";
+  loadLesson(lessonIndex);
+  // پخش حرف جدید
+  setTimeout(()=> speak(lessons[lessonIndex].letter), 500);
+}
+
+/* ========= دکمه بعدی/رد شدن برای تست ========= */
+skipBtn.addEventListener('click', ()=> {
+  nextLesson();
+});
+
+/* ========= شانس/ابزار کمکی: اگر تشخیص گفتار کار نکرد ========= */
+if(!isRecognitionAvailable()){
+  message.textContent = "توجه: مرورگر شما از تشخیص گفتار پشتیبانی نمی‌کند. می‌توانید با دکمهٔ پخش، صدا را گوش کنید و به صورت دستی تمرین کنید.";
+}
+
+/* ========= ابزار کمک: shuffle ========= */
+function shuffleArray(a){
+  for (let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+/* ========= شروع ========= */
+loadLesson(lessonIndex);
+</script>
+</body>
+</html>
