@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="fa">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>بازی الفبا — تست</title>
+<style>
+  :root{
+    --bg:#fff8ec; --card:#ffffff; --accent:#ff7a59; --accent2:#4CAF50;
+    --muted:#888;
+  }
+  body{font-family: Tahoma, 'Vazir', sans-serif; direction:rtl; text-align:center; margin:0; padding:20px; background:var(--bg); color:#222;}
+  .wrap{max-width:720px;margin:0 auto;}
+  header{font-size:20px;margin-bottom:12px}
+  .card{background:var(--card); border-radius:14px; padding:18px; box-shadow:0 6px 18px rgba(0,0,0,0.08);}
+  #bigChar{font-size:120px; margin:10px 0; font-weight:700;}
+  .controls{margin:10px 0;}
+  button{font-size:18px;padding:10px 14px;border-radius:10px;border:none;cursor:pointer;background:var(--accent2);color:white;margin:6px;}
+  .muted{background:#ddd;color:#333;}
+  .small{font-size:14px;color:var(--muted); margin-top:8px;}
+  #message, #subMessage{min-height:24px;margin-top:10px;font-size:18px;}
+  .hidden{display:none;}
+  .vowelRow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px;}
+  .vowelBtn{background:#fff;border:2px solid #eee;padding:10px 14px;border-radius:10px;font-size:28px;min-width:86px;cursor:pointer;}
+  .correct{background:#c8e6c9;border-color:#2e7d32;}
+  .wrong{background:#ffcdd2;border-color:#c62828;}
+  .choices{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:12px;}
+  .choice{background:white;border:2px solid #ddd;padding:12px;border-radius:12px;min-width:120px;font-size:20px;cursor:pointer;}
+  .star{color:#f39c12;font-size:20px;margin-top:6px;}
+  footer{margin-top:12px;font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <header>بازی آموزشی — تلفظ و شناخت کلمه (نسخه تست)</header>
+
+      <div id="stageTitle">مرحله ۱: حرف</div>
+
+      <div id="bigChar">ب</div>
+
+      <div class="controls" id="stage1Controls">
+        <button id="playLetter">🔊 پخش حرف</button>
+        <button id="listenLetter">🎤 گوش کن (تلفظ کن)</button>
+        <button id="nextToVowels" class="muted">⏭️ مرحلهٔ حرکات</button>
+      </div>
+      <div id="message"></div>
+
+      <div id="vowelsArea" class="hidden">
+        <h3>مرحله ۲: حرکات</h3>
+        <div class="vowelRow">
+          <button class="vowelBtn" data-syll="با">با</button>
+          <button class="vowelBtn" data-syll="بو">بو</button>
+          <button class="vowelBtn" data-syll="بی">بی</button>
+        </div>
+        <div style="margin-top:10px;">
+          <button id="playSyll" class="muted">🔊 پخش فعلی</button>
+          <button id="listenSyll">🎤 گوش کن</button>
+        </div>
+        <div id="subMessage" class="small"></div>
+        <div style="margin-top:8px;">
+          <button id="toWord" class="muted">⏭️ مرحلهٔ کلمه</button>
+        </div>
+      </div>
+
+      <div id="wordArea" class="hidden" style="margin-top:12px;">
+        <h3>مرحله ۳: کلمه</h3>
+        <div id="wordBig" style="font-size:48px;font-weight:700">بابا</div>
+        <div style="margin-top:8px;">
+          <button id="playWord">🔊 پخش کلمه</button>
+          <button id="listenWord">🎤 گوش کن</button>
+        </div>
+        <div id="wordMsg" class="small"></div>
+        <div style="margin-top:8px;">
+          <button id="toChoose" class="muted">⏭️ مرحلهٔ تشخیص</button>
+        </div>
+      </div>
+
+      <div id="chooseArea" class="hidden" style="margin-top:12px;">
+        <h3>مرحله ۴: شنیداری + تصویری</h3>
+        <div style="margin-bottom:8px;">
+          <button id="playTarget" class="muted">🔊 پخش کلمه هدف</button>
+        </div>
+        <div class="choices">
+          <div class="choice" data-word="بابا">👨</div>
+          <div class="choice" data-word="سیب">🍎</div>
+          <div class="choice" data-word="توپ">⚽</div>
+        </div>
+        <div id="chooseMsg" class="small"></div>
+      </div>
+
+      <div id="score" class="star"></div>
+      <div class="small">برای عملکرد بهتر از Google Chrome در اندروید استفاده کنید و به میکروفون اجازه دهید.</div>
+    </div>
+
+    <footer>نسخهٔ تست — اگر مشکلی شدید بود خبر بده تا اصلاح کنم.</footer>
+  </div>
+
+<script>
+/* ======== داده‌ها ======== */
+const lesson = {
+  letter: "ب",
+  syllables: ["با","بو","بی"],
+  word: "بابا",
+  choices: [
+    {word:"بابا", emoji:"👨"},
+    {word:"سیب", emoji:"🍎"},
+    {word:"توپ", emoji:"⚽"}
+  ]
+};
+
+let score = 0;
+let currentSyll = lesson.syllables[0];
+
+/* ======== المنت‌ها ======== */
+const bigChar = document.getElementById('bigChar');
+const playLetter = document.getElementById('playLetter');
+const listenLetter = document.getElementById('listenLetter');
+const nextToVowels = document.getElementById('nextToVowels');
+const message = document.getElementById('message');
+
+const vowelsArea = document.getElementById('vowelsArea');
+const vowelBtns = document.querySelectorAll('.vowelBtn');
+const playSyll = document.getElementById('playSyll');
+const listenSyll = document.getElementById('listenSyll');
+const subMessage = document.getElementById('subMessage');
+const toWord = document.getElementById('toWord');
+
+const wordArea = document.getElementById('wordArea');
+const playWord = document.getElementById('playWord');
+const listenWord = document.getElementById('listenWord');
+const wordMsg = document.getElementById('wordMsg');
+const toChoose = document.getElementById('toChoose');
+
+const chooseArea = document.getElementById('chooseArea');
+const playTarget = document.getElementById('playTarget');
+const choices = document.querySelectorAll('.choice');
+const chooseMsg = document.getElementById('chooseMsg');
+
+const scoreEl = document.getElementById('score');
+
+/* ======== نرمال‌سازی فارسی ======== */
+function normalizePersian(s){
+  if(!s) return "";
+  s = s + "";
+  s = s.toLowerCase().trim();
+  s = s.replace(/[\u064B-\u0652]/g, "");
+  s = s.replace(/[ي]/g,"ی").replace(/[ك]/g,"ک");
+  s = s.replace(/آ/g,"ا");
+  s = s.replace(/\s+/g,"");
+  return s;
+}
+
+/* ======== Text-to-Speech ======== */
+function speak(text, onend){
+  if(!('speechSynthesis' in window)){
+    alert('مرورگر شما از پخش گفتار پشتیبانی نمی‌کند.');
+    if(onend) onend();
+    return;
+  }
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'fa-IR';
+  u.rate = 0.95;
+  u.onend = ()=>{ if(onend) onend(); };
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+
+/* ======== Speech Recognition wrapper ======== */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+function isRecognitionAvailable(){ return !!SpeechRecognition; }
+
+function listenOnce(lang='fa-IR', timeout=7000){
+  return new Promise((resolve,reject)=>{
+    if(!SpeechRecognition){
+      reject('noapi');
+      return;
+    }
+    let r = new SpeechRecognition();
+    r.lang = lang;
+    r.interimResults = false;
+    r.maxAlternatives = 3;
+    try{
+      r.start();
+    }catch(e){
+      reject(e);
+      return;
+    }
+    let done = false;
+    r.onresult = (ev)=>{
+      done = true;
+      const txt = ev.results[0][0].transcript;
+      resolve(txt);
+    };
+    r.onerror = (ev)=>{
+      if(!done) reject(ev.error || ev.message || 'error');
+    };
+    // safety stop
+    setTimeout(()=>{ try{ r.stop(); }catch(e){} }, timeout);
+  });
+}
+
+/* ======== درخواست دسترسی میکروفون (فقط برای فعال‌سازی اولیه) ======== */
+async function ensureMic(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  try{
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+  }catch(e){
+    // کاربر اجازه نداد یا خطا
+    console.log('mic permission denied or error', e);
+  }
+}
+
+/* ======== مرحله 1: حرف ======== */
+bigChar.textContent = lesson.letter;
+playLetter.addEventListener('click', ()=> speak(lesson.letter));
+listenLetter.addEventListener('click', async ()=>{
+  message.textContent = "در حال گوش کردن... لطفاً حرف را بگو.";
+  if(!isRecognitionAvailable()){ message.textContent = "مرورگر شما از تشخیص گفتار پشتیبانی نمی‌کند."; return; }
+  try{
+    await ensureMic();
+    const t = await listenOnce('fa-IR');
+    message.textContent = "شما گفتید: " + t;
+    const got = normalizePersian(t);
+    const target = normalizePersian(lesson.letter);
+    if(got === target || got.includes(target)){
+      message.textContent = "آفرین! تلفظ حرف درست بود 🎉";
+      score++; updateScore();
+      // نمایش دکمه ادامه
+      nextToVowels.classList.remove('muted'); nextToVowels.disabled = false;
+      // اندکی بعد رفتن به مرحله بعد
+      setTimeout(()=> showVowels(), 900);
+    } else {
+      message.textContent = "دوباره تلاش کن یا دکمه پخش را فشار بده.";
+    }
+  }catch(err){
+    if(err === 'noapi') message.textContent = "مرورگر شما از SpeechRecognition پشتیبانی نمی‌کند.";
+    else message.textContent = "خطا در تشخیص گفتار: " + (err.message || err);
+  }
+});
+nextToVowels.addEventListener('click', showVowels);
+
+/* ======== نمایش و کار با حرکات ======== */
+function showVowels(){
+  vowelsArea.classList.remove('hidden');
+  document.getElementById('stageTitle').textContent = "مرحله ۲: حرکات (با، بو، بی)";
+  // انتخاب اولین
+  currentSyll = lesson.syllables[0];
+  highlightSyll(currentSyll);
+  speak(currentSyll);
+}
+
+function highlightSyll(s){
+  vowelBtns.forEach(b=>{
+    if(b.dataset.syll === s) b.style.borderColor = '#2196f3';
+    else b.style.borderColor = '#eee';
+  });
+}
+vowelBtns.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const s = btn.dataset.syll;
+    currentSyll = s;
+    highlightSyll(s);
+    speak(s);
+    subMessage.textContent = "";
+  });
+});
+playSyll.addEventListener('click', ()=> { speak(currentSyll); });
+listenSyll.addEventListener('click', async ()=>{
+  subMessage.textContent = "در حال گوش کردن... لطفاً تکرار کن.";
+  if(!isRecognitionAvailable()){ subMessage.textContent = "مرورگر شما از تشخیص گفتار پشتیبانی نمی‌کند."; return; }
+  try{
+    await ensureMic();
+    const t = await listenOnce('fa-IR');
+    subMessage.textContent = "شما گفتید: " + t;
+    const got = normalizePersian(t);
+    const target = normalizePersian(currentSyll);
+    if(got === target || got.includes(target)){
+      subMessage.textContent = "آفرین! درست گفتی 🎉";
+      score++; updateScore();
+      // برو مرحلهٔ بعد اگر آخر بود
+      let idx = lesson.syllables.indexOf(currentSyll);
+      if(idx < lesson.syllables.length - 1){
+        currentSyll = lesson.syllables[idx+1];
+        highlightSyll(currentSyll);
+        setTimeout(()=> speak(currentSyll), 700);
+      } else {
+        // همه حرکت‌ها انجام شد؛ آماده کلمه
+        setTimeout(()=> showWord(), 900);
+      }
+    } else {
+      subMessage.textContent = "دوباره تلاش کن یا صدا را گوش کن.";
+    }
+  }catch(err){
+    if(err === 'noapi') subMessage.textContent = "مرورگر شما از SpeechRecognition پشتیبانی نمی‌کند.";
+    else subMessage.textContent = "خطا در تشخیص سخن: " + (err.message || err);
+  }
+});
+toWord.addEventListener('click', showWord);
+
+/* ======== مرحله 3: کلمه ======== */
+function showWord(){
+  wordArea.classList.remove('hidden');
+  document.getElementById('stageTitle').textContent = "مرحله ۳: کلمه";
+  speak(lesson.word);
+}
+playWord.addEventListener('click', ()=> speak(lesson.word));
+listenWord.addEventListener('click', async ()=>{
+  wordMsg.textContent = "در حال گوش کردن... لطفاً کلمه را بگو.";
+  if(!isRecognitionAvailable()){ wordMsg.textContent = "مرورگر شما از تشخیص گفتار پشتیبانی نمی‌کند."; return; }
+  try{
+    await ensureMic();
+    const t = await listenOnce('fa-IR');
+    wordMsg.textContent = "شما گفتید: " + t;
+    const got = normalizePersian(t);
+    const target = normalizePersian(lesson.word);
+    if(got === target || got.includes(target)){
+      wordMsg.textContent = "آفرین! تلفظ کلمه درست بود 🎉";
+      score++; updateScore();
+      setTimeout(()=> showChoose(), 900);
+    } else {
+      wordMsg.textContent = "دوباره تلاش کن یا صدا را گوش کن.";
+    }
+  }catch(err){
+    if(err === 'noapi') wordMsg.textContent = "مرورگر شما از SpeechRecognition پشتیبانی نمی‌کند.";
+    else wordMsg.textContent = "خطا: " + (err.message || err);
+  }
+});
+toChoose.addEventListener('click', showChoose);
+
+/* ======== مرحله 4: پخش کلمه و انتخاب تصویر ======== */
+function showChoose(){
+  chooseArea.classList.remove('hidden');
+  document.getElementById('stageTitle').textContent = "مرحله ۴: شنیداری + تصویری (لمس تصویر درست)";
+  // shuffle choices visually (but keep map)
+  // we simply leave as-is for test
+  speak(lesson.word);
+}
+playTarget.addEventListener('click', ()=> speak(lesson.word));
+choices.forEach(ch=>{
+  ch.addEventListener('click', ()=>{
+    const pick = ch.dataset.word;
+    if(normalizePersian(pick) === normalizePersian(lesson.word)){
+      ch.classList.add('correct');
+      chooseMsg.textContent = "آفرین! درست تشخیص دادی 🎉";
+      score++; updateScore();
+      // نوبت تموم شد — می‌توانیم ریست کنیم یا پیام پایان بدهیم
+      setTimeout(()=> {
+        chooseMsg.textContent = "تبریک! تمرین این درس تمام شد.";
+      },700);
+    } else {
+      ch.classList.add('wrong');
+      chooseMsg.textContent = "نه؛ اشتباهه. دوباره تلاش کن.";
+      setTimeout(()=> { ch.classList.remove('wrong'); chooseMsg.textContent=''; },900);
+    }
+  });
+});
+
+/* ======== helper: update score ======== */
+function updateScore(){
+  scoreEl.textContent = "⭐".repeat(score);
+}
+
+/* ======== اگر تشخیص گفتار در دسترس نباشد ======== */
+if(!isRecognitionAvailable()){
+  const warn = document.createElement('div');
+  warn.className='small';
+  warn.style.color='crimson';
+  warn.style.marginTop='8px';
+  warn.textContent = 'تذکر: مرورگر شما از تشخیص گفتار پشتیبانی نمی‌کند؛ در این حالت کارِ پخش صدا فعال خواهد بود اما شناسایی گفتار غیر ممکن است.';
+  document.querySelector('.card').appendChild(warn);
+}
+
+/* ======== شروع اولیه: درخواست میکروفون خاموش برای جلوگیری از غیرفعال بودنlater ======== */
+(async ()=>{ await ensureMic(); })();
+
+</script>
+</body>
+</html>
